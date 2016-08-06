@@ -1,0 +1,7 @@
+
+# Generated files
+obj/
+*.o
+*.exe
+*.dep
+*.dll
