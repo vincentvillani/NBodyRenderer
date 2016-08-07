@@ -10,6 +10,10 @@
 #include <iostream>
 #include <stdint.h>
 
+
+#include "NBodyFileInput.h"
+
+
 using namespace std;
 
 vec2i _window_size;
@@ -105,6 +109,47 @@ void take_screen_shot()
 }
 
 
+void load_sim_file(Point_Mesh & point_mesh, unsigned int frame_index)
+{
+	FILE* input_file = fopen("OutputFile.sim", "rb");
+
+	if(input_file == NULL)
+		return;
+
+	point_mesh.clear();
+
+	NBodyFileHeader* nbody_file_header = FileInputReadHeader(input_file);
+
+	frame_index = frame_index % nbody_file_header->numberOfFrames;
+
+	NBodyFrameBuffer frame_buffer(frame_index, nbody_file_header->numberOfParticles);
+
+	FileInputReadFrame(nbody_file_header, frame_index, &frame_buffer, input_file);
+
+	vec3f position;
+	unsigned int index;
+	for(unsigned int i = 0; i < frame_buffer.particleNumber; ++i)
+	{
+		index = i * 3;
+
+		position.x = frame_buffer.positions[index];
+		position.y = frame_buffer.positions[index + 1];
+		position.z = frame_buffer.positions[index + 2];
+
+		point_mesh.add_point(position, Color(1.0f, 0.0f, 0.0f), 3.0f);
+
+		if(i == 0)
+		{
+			printf(position.to_string().c_str());
+		}
+	}
+
+	fclose(input_file);
+
+	point_mesh.update_mesh();
+
+}
+
 
 
 int main(int argc, char *argv[])
@@ -136,29 +181,22 @@ int main(int argc, char *argv[])
 	canvas.init();
 
 
+	unsigned int frame_index = 0;
+
+
 	bool quit = false;
 
 	vector<vec3f> point_list;
 
+
 	Point_Mesh point_mesh;
 
-	int point_count = 5000000;
 
 	point_mesh.init();
 
-	vec3f point;
-	for (unsigned int i = 0; i < point_count; ++i)
-	{
-		
-		point.x = (rand() % 1000) / 1000.0f * 100;
-		point.y = (rand() % 1000) / 1000.0f * 100;
-		point.z = (rand() % 1000) / 1000.0f * 100;
-
-		point_mesh.add_point(point, Color(1.0f, point.y / 100.0f, point.z / 100.0f), 3.0f);
-	}
+	load_sim_file(point_mesh, frame_index);
 
 
-	point_mesh.update_mesh();
 
 	while (!quit)
 	{
@@ -176,6 +214,14 @@ int main(int argc, char *argv[])
 				lex::screen::set_windowed_fullscreen();
 			else
 				lex::screen::set_windowed(200, 200);
+		}
+
+		if(lex::input::key_hit(GLFW_KEY_Z))
+		{
+			//printf("NEXT FRAME");
+			frame_index += 1;
+			load_sim_file(point_mesh, frame_index);
+
 		}
 
 

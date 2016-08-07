@@ -19,7 +19,7 @@ OFILES := $(OBJFILES:%=obj/%.o)
 BINFILE = nbody_renderer
 
 COMMONFLAGS = -Wall -Wextra -pedantic -I$(INCLUDES)
-LDFLAGS = -Llib/ -L../lex_engine -L../lex_math -l:lex_engine.a -l:lex_math.a -lopengl32 -l:libglew32.dll.a -l:glfw3dll.a
+LDFLAGS = -Llib/ -L../../Trent/lex_engine -L../../Trent/lex_math -l:lex_engine.a -l:lex_math.a -lopengl32 -l:libglew32.dll.a -l:glfw3dll.a
 
 # Add the -g command for debugging
 ifdef DEBUG

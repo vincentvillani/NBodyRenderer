@@ -5,3 +5,5 @@ obj/
 *.exe
 *.dep
 *.dll
+*.tga
+*.sim
