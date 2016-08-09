@@ -20,6 +20,13 @@ vec2i _window_size;
 bool _fullscreen = false;
 
 
+enum APP_MODE
+{
+	PLAY_MODE,
+	PAUSED_MODE,
+	RENDERING_MOVIE_MODE
+};
+
 void floating_camera(Camera_Handle camera_handle)
 {
 	static vec3f angle;
@@ -28,6 +35,8 @@ void floating_camera(Camera_Handle camera_handle)
 
 	double mouseX = 0;
 	double mouseY = 0;
+
+	float move_speed = 100.0f;
 
 	//if (lex::input::key_down(GLFW_KEY_LEFT_ALT) && lex::input::mouse_down(GLFW_MOUSE_BUTTON_LEFT))
 	{
@@ -38,27 +47,27 @@ void floating_camera(Camera_Handle camera_handle)
 	}
 
 	if (lex::input::key_down(GLFW_KEY_W))
-		camera_handle.set_camera_position(camera_handle.get_camera_position() - camera_handle.get_camera_rotation().get_z_axis() * Time::delta() * 10);
+		camera_handle.set_camera_position(camera_handle.get_camera_position() - camera_handle.get_camera_rotation().get_z_axis() * Time::delta() * move_speed);
 
 	if (lex::input::key_down(GLFW_KEY_S))
-		camera_handle.set_camera_position(camera_handle.get_camera_position() + camera_handle.get_camera_rotation().get_z_axis() * Time::delta() * 10);
+		camera_handle.set_camera_position(camera_handle.get_camera_position() + camera_handle.get_camera_rotation().get_z_axis() * Time::delta() * move_speed);
 
 	if (lex::input::key_down(GLFW_KEY_A))
-		camera_handle.set_camera_position(camera_handle.get_camera_position() - camera_handle.get_camera_rotation().get_x_axis() * Time::delta() * 10);
+		camera_handle.set_camera_position(camera_handle.get_camera_position() - camera_handle.get_camera_rotation().get_x_axis() * Time::delta() * move_speed);
 
 	if (lex::input::key_down(GLFW_KEY_D))
-		camera_handle.set_camera_position(camera_handle.get_camera_position() + camera_handle.get_camera_rotation().get_x_axis() * Time::delta() * 10);
+		camera_handle.set_camera_position(camera_handle.get_camera_position() + camera_handle.get_camera_rotation().get_x_axis() * Time::delta() * move_speed);
 }
 
 
 
-void take_screen_shot()
+void take_screen_shot(string file_name)
 {
 	vec2i screen_size = lex::get_screen_size();
 	
 	
 	ofstream file;
-	file.open("screenshot.tga", ofstream::out | ofstream::binary);
+	file.open(file_name, ofstream::out | ofstream::binary);
 
 	if (file.is_open() == false)
 		return;
@@ -109,66 +118,93 @@ void take_screen_shot()
 }
 
 
-void load_sim_file(Point_Mesh & point_mesh, unsigned int frame_index)
-{
-	FILE* input_file = fopen("OutputFile.sim", "rb");
 
-	if(input_file == NULL)
-		return;
+
+
+void load_sim_file(FILE* sim_file, NBodyFileHeader* nbody_file_header, NBodyFrameBuffer & frame_buffer, Point_Mesh & point_mesh, unsigned int frame_index)
+{
+	FileInputReadFrame(nbody_file_header, frame_index, &frame_buffer, sim_file);
+
 
 	point_mesh.clear();
-
-	NBodyFileHeader* nbody_file_header = FileInputReadHeader(input_file);
-
-	frame_index = frame_index % nbody_file_header->numberOfFrames;
-
-	NBodyFrameBuffer frame_buffer(frame_index, nbody_file_header->numberOfParticles);
-
-	FileInputReadFrame(nbody_file_header, frame_index, &frame_buffer, input_file);
-
 	vec3f position;
 	unsigned int index;
+
+	float scale = 0.5f;
+
+	int colorSize = 50;
 	for(unsigned int i = 0; i < frame_buffer.particleNumber; ++i)
 	{
 		index = i * 3;
+
 
 		position.x = frame_buffer.positions[index];
 		position.y = frame_buffer.positions[index + 1];
 		position.z = frame_buffer.positions[index + 2];
 
-		point_mesh.add_point(position, Color(1.0f, 0.0f, 0.0f), 3.0f);
+		point_mesh.add_point(position * scale, Color( 1,1,1), 1.0f);
 
 		if(i == 0)
 		{
-			printf(position.to_string().c_str());
+			//printf(position.to_string().c_str());
 		}
 	}
-
-	fclose(input_file);
 
 	point_mesh.update_mesh();
 
 }
 
 
+void render_animation(FILE* sim_file, NBodyFileHeader* nbody_file_header, NBodyFrameBuffer & frame_buffer, Point_Mesh & point_mesh, Camera_Handle camera)
+{
+
+	char out_file_buffer[100];
+
+	for(unsigned int i = 0; i < 10; ++i)
+	{
+		lex::update();
+
+
+		load_sim_file(sim_file, nbody_file_header, frame_buffer, point_mesh, i);
+
+		lex::update_transforms();
+
+		camera.draw();
+
+		point_mesh.draw(camera.get_projection_matrix(), camera.get_view_matrix());
+
+		sprintf(out_file_buffer, "output/%d.tga", i);
+
+		take_screen_shot(out_file_buffer);
+
+		lex::swap_buffers();
+	}
+}
+
 
 int main(int argc, char *argv[])
 {
-	//UNUSED(argc);
-	//UNUSED(argv);
-
 
 	Resource_Management::set_engine_data_path("C:/msys64/home/Trent/lex_engine/data/");
 	//Resource_Management::set_data_path("C:/msys64/home/Trent/cave/data/");
 
 
-	_window_size = vec2i(1280, 720);
+	unsigned int width = 1280;
+	unsigned int height = 720;
+
+	if(argc == 3)
+	{
+		width = atoi(argv[1]);
+		height = atoi(argv[2]);
+	}
+
+	_window_size = vec2i(width, height);
 	lex::initilise(_window_size, lex::CORE_PROFILE);
 
 
 	// Create a camera
 	Camera_Handle main_camera = lex::camera::create();
-	main_camera.set_perspective(65.0f, 0.01f, 1000.0f);
+	main_camera.set_perspective(65.0f, 0.01f, 10000.0f);
 	main_camera.set_camera_zoom(0);
 
 	main_camera.set_clear_color(Color(0.2f, 0.2f, 0.2f));
@@ -181,27 +217,45 @@ int main(int argc, char *argv[])
 	canvas.init();
 
 
-	unsigned int frame_index = 0;
-
-
 	bool quit = false;
 
-	vector<vec3f> point_list;
-
-
 	Point_Mesh point_mesh;
-
-
 	point_mesh.init();
 
-	load_sim_file(point_mesh, frame_index);
+
+	unsigned int frame_since_start = 0;
+	int last_frame = frame_since_start;
+
+	unsigned int current_frame = 0;
 
 
+
+	APP_MODE app_mode = PAUSED_MODE;
+
+
+
+	FILE* input_sim_file = fopen("OutputFile.sim", "rb");
+
+	if(input_sim_file == NULL)
+	{
+		lex::close();
+		return EXIT_SUCCESS;
+	}
+
+	NBodyFileHeader* nbody_file_header = FileInputReadHeader(input_sim_file);
+	NBodyFrameBuffer frame_buffer(0, nbody_file_header->numberOfParticles);
+
+	load_sim_file(input_sim_file, nbody_file_header, frame_buffer, point_mesh, current_frame);
 
 	while (!quit)
 	{
-
 		lex::update();
+
+		if(lex::input::key_hit(GLFW_KEY_M))
+		{
+			render_animation(input_sim_file, nbody_file_header, frame_buffer, point_mesh, main_camera);
+
+		}
 
 		if (lex::input::key_down(GLFW_KEY_ESCAPE))
 			break;
@@ -216,16 +270,60 @@ int main(int argc, char *argv[])
 				lex::screen::set_windowed(200, 200);
 		}
 
-		if(lex::input::key_hit(GLFW_KEY_Z))
+
+		if(app_mode != RENDERING_MOVIE_MODE)
 		{
-			//printf("NEXT FRAME");
-			frame_index += 1;
-			load_sim_file(point_mesh, frame_index);
+
+			int new_frame =  (int)(Time::get_milliseconds() / 16.66f) ;
+
+
+
+			if(lex::input::key_hit(GLFW_KEY_Z))
+			{
+				app_mode = PAUSED_MODE;
+				current_frame--;
+
+				if(current_frame > nbody_file_header->numberOfFrames)
+					current_frame = nbody_file_header->numberOfFrames - 1;
+
+				load_sim_file(input_sim_file, nbody_file_header, frame_buffer, point_mesh, current_frame);
+			}
+			else if(lex::input::key_hit(GLFW_KEY_X))
+			{
+				app_mode = PAUSED_MODE;
+				current_frame++;
+
+				if(current_frame >= nbody_file_header->numberOfFrames)
+					current_frame = 0;
+
+				load_sim_file(input_sim_file, nbody_file_header, frame_buffer, point_mesh, current_frame);
+			}
+			else if(lex::input::key_hit(GLFW_KEY_SPACE))
+			{
+				if(app_mode == PLAY_MODE)
+					app_mode = PAUSED_MODE;
+				else if(app_mode == PAUSED_MODE)
+					app_mode = PLAY_MODE;
+			}
+
+
+			if(app_mode == PLAY_MODE && last_frame != new_frame)
+			{
+				current_frame++;
+
+				if(current_frame >= nbody_file_header->numberOfFrames)
+					current_frame = 0;
+
+				load_sim_file(input_sim_file, nbody_file_header, frame_buffer, point_mesh, current_frame);
+
+				last_frame = new_frame;
+			}
+
+
+
+			floating_camera(main_camera);
 
 		}
-
-
-		floating_camera(main_camera);
 
 
 		ostringstream string_stream;
@@ -233,13 +331,16 @@ int main(int argc, char *argv[])
 
 		canvas.draw_text(string_stream.str(), vec2f(0, 20));
 
+		string_stream.str(std::string());
+
+		string_stream << "Frame Number: " << current_frame;
+		canvas.draw_text(string_stream.str(), vec2f(600, 20));
 
 
 		main_camera.draw_line(vec3f(-1, -1, -1), vec3f(0, -1, -1), Color(1, 0, 0));
 		main_camera.draw_line(vec3f(-1, -1, -1), vec3f(-1, 0, -1), Color(0, 1, 0));
 		main_camera.draw_line(vec3f(-1, -1, -1), vec3f(-1, -1, 0), Color(0, 0, 1));
 
-		//point_mesh.update_mesh();
 
 		lex::update_transforms();
 
@@ -251,14 +352,15 @@ int main(int argc, char *argv[])
 
 		
 
-		if (lex::input::key_hit(GLFW_KEY_A))
-			take_screen_shot();
+
 
 		lex::swap_buffers();
 
 	}
 
 
+
+	fclose(input_sim_file);
 
 
 
