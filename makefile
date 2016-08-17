@@ -18,13 +18,26 @@ OFILES := $(OBJFILES:%=obj/%.o)
 
 BINFILE = nbody_renderer
 
-COMMONFLAGS = -Wall -Wextra -pedantic -I$(INCLUDES)
-LDFLAGS = -Llib/ -L../../Trent/lex_engine -L../../Trent/lex_math -l:lex_engine.a -l:lex_math.a -lopengl32 -l:libglew32.dll.a -l:glfw3dll.a
+#Libs
+LEX_MATH_INCLUDE_DIR = ../../projects/lex_math/include 
+LEX_MATH_LIB_DIR	 = ../../projects/lex_math/build
+
+LEX_ENGINE_INCLUDE_DIR = ../../projects/lex_engine/include 
+LEX_ENGINE_LIB_DIR	 = ../../projects/lex_engine
+
+COMMONFLAGS = -Wall -Wextra -pedantic -m64 -I$(INCLUDES) -I$(LEX_MATH_INCLUDE_DIR) -I$(LEX_ENGINE_INCLUDE_DIR) -D_FILE_OFFSET_BITS=64
+LDFLAGS = -Llib/ -L$(LEX_ENGINE_LIB_DIR) -L$(LEX_MATH_LIB_DIR) -l:lex_engine.a -l:lex_math.a -lopengl32 -l:libglew32.dll.a -l:glfw3dll.a
 
 # Add the -g command for debugging
 ifdef DEBUG
 	COMMONFLAGS := $(COMMONFLAGS) -g3
 endif
+
+ifdef RELEASE
+	COMMONFLAGS := $(COMMONFLAGS) -O3
+endif
+
+
 
 CXXFLAGS = $(COMMONFLAGS) --std=c++11
 DEPDIR = deps
@@ -57,6 +70,7 @@ $(BINFILE): $(OFILES)
 clean:
 	$(E)Removing files
 	$(Q)rm -f $(BINFILE) obj/* Makefile.dep
+
 	
 	
 #This is a debug target for printing a variable

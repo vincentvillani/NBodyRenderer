@@ -121,7 +121,7 @@ void take_screen_shot(string file_name)
 
 
 
-void load_sim_file(FILE* sim_file, NBodyFileHeader* nbody_file_header, NBodyFrameBuffer & frame_buffer, Point_Mesh & point_mesh, unsigned int frame_index)
+void load_sim_file(FILE* sim_file, NBodyFileHeader* nbody_file_header, NBodyFrameBuffer & frame_buffer, Point_Mesh & point_mesh, uint64_t frame_index)
 {
 	FileInputReadFrame(nbody_file_header, frame_index, &frame_buffer, sim_file);
 
@@ -160,7 +160,7 @@ void render_animation(FILE* sim_file, NBodyFileHeader* nbody_file_header, NBodyF
 
 	char out_file_buffer[100];
 
-	for(unsigned int i = 0; i < 10; ++i)
+	for(unsigned int i = 0; i < nbody_file_header->numberOfFrames; ++i)
 	{
 		lex::update();
 
@@ -185,7 +185,7 @@ void render_animation(FILE* sim_file, NBodyFileHeader* nbody_file_header, NBodyF
 int main(int argc, char *argv[])
 {
 
-	Resource_Management::set_engine_data_path("C:/msys64/home/Trent/lex_engine/data/");
+	Resource_Management::set_engine_data_path("C:/msys64/home/Work/projects/lex_engine/data/");
 	//Resource_Management::set_data_path("C:/msys64/home/Trent/cave/data/");
 
 
@@ -247,6 +247,8 @@ int main(int argc, char *argv[])
 
 	load_sim_file(input_sim_file, nbody_file_header, frame_buffer, point_mesh, current_frame);
 
+	bool clear_back_buffer = true;
+
 	while (!quit)
 	{
 		lex::update();
@@ -276,7 +278,8 @@ int main(int argc, char *argv[])
 
 			int new_frame =  (int)(Time::get_milliseconds() / 16.66f) ;
 
-
+			if(lex::input::key_hit(GLFW_KEY_B))
+				clear_back_buffer = !clear_back_buffer;
 
 			if(lex::input::key_hit(GLFW_KEY_Z))
 			{
@@ -344,6 +347,7 @@ int main(int argc, char *argv[])
 
 		lex::update_transforms();
 
+		//if(clear_back_buffer)
 		main_camera.draw();
 
 		canvas.draw(lex::get_screen_orthographic_projection(), mat4::identity());
