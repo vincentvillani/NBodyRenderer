@@ -7,3 +7,5 @@ obj/
 *.dll
 *.tga
 *.sim
+*.cproject
+*.project
